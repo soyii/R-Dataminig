@@ -1,0 +1,135 @@
+---
+title: "Predict the price of a used Toyota Corolla"
+output: html_document
+author: Soyi 
+---
+
+In this project, we'll record the RMS error for the training data and the validation data. And repeat the process, changing the number of hidden layers and nodes. We'll compare their performance to find the most optimized model.
+
+## Packages and data load
+
+```{r}
+library(neuralnet)
+library(nnet)
+library(caret)
+library(e1071)
+library(ModelMetrics)
+library(ggplot2)
+library(dummies)
+library(dplyr)
+
+Toyota.df <- read.csv("ToyotaCorolla.csv")
+
+#head(Toyota.df)
+#summary(Toyota.df)
+```
+
+## Select variables
+Use predictors Age_08_04, KM, Fuel_Type, HP, Automatic, Doors, Quarterly_Tax,
+Mfr_Guarantee, Guarantee_Period, Airco, Automatic_airco, CD_Player,
+Powered_Windows, Sport_Model, and Tow_Bar.
+
+```{r}
+Toyota.df <- Toyota.df[,-c(1,2,5,6,10,11,13,15,16,18,20,22,23,24,27,29,31,32,33,35,36,37,38)]
+
+#summary(Toyota.df)
+str(Toyota.df)
+```
+
+Only "Fuel_Type"is factor and all the rest is integer.
+Neuralnet() method does not allow for categorical variables. In this case, we simply use dummy variables for the Fuel_Type variable. 
+
+```{r}
+Toyota.df$FuelType_CNG <- ifelse(Toyota.df$Fuel_Type == 'CNG', 1, 0)
+Toyota.df$FuelType_Diesel <- ifelse(Toyota.df$Fuel_Type == 'Diesel', 1, 0)
+Toyota.df$FuelType_Petrol <- ifelse(Toyota.df$Fuel_Type == 'Petrol', 1, 0)
+
+Toyota.df$Fuel_Type <- NULL
+```
+
+##Scaling the dummy variables
+calculate pre-process parameters from the dataset.
+
+```{r}
+prep <- preProcess(Toyota.df, method = c("range"))
+#print(prep)
+
+df_scaled <- predict(prep, Toyota.df)
+#summary(df_scaled)
+```
+
+## Data partitioning (train / validation set split)
+Sampling randomly 60/40% split.
+
+```{r pressure, echo=FALSE}
+set.seed(4)
+trainIndex=sample(row.names(df_scaled), dim(df_scaled)[1]*0.6)
+validationIndex=setdiff(row.names(df_scaled), trainIndex)
+#head(trainIndex)
+
+train_data <- df_scaled[trainIndex,]
+valid_data <- df_scaled[validationIndex,]
+```
+
+## Fit ANN model on the training dataset
+(a single hidden layer with 2 nodes model)
+
+```{r pressure, echo=FALSE}
+f <- as.formula(Price ~ Age_08_04 + KM + FuelType_CNG + FuelType_Diesel + FuelType_Petrol + HP + Automatic + Doors + Quarterly_Tax + Mfr_Guarantee + Guarantee_Period + Airco + Automatic_airco + CD_Player + Powered_Windows + Sport_Model + Tow_Bar)
+
+nn_1_fit <- neuralnet(f, data = train_data, hidden = 2)
+
+#summary(nn_1_train)
+```
+
+## Show the structure of the neural network trained
+
+```{r pressure, echo=FALSE}
+plot(nn_1_fit, rep="best", cex=0.8)
+```
+
+## Fit a neural network model with {single layer with 5 nodes}, {two layers, 5 nodes in each layer}.
+
+```{r}
+nn_2_fit <- neuralnet(f, data = train_data, hidden = 5)
+nn_3_fit <- neuralnet(f, data = train_data, hidden = c(5,5), linear.output = T)
+```
+
+## Evaluate predictive performance.
+
+```{r pressure, echo=FALSE}
+predict1_norm_train <- compute(nn_1_fit, train_data)
+predict2_norm_train <- compute(nn_2_fit, train_data)
+predict3_norm_train <- compute(nn_3_fit, train_data)
+```
+
+Next, I'll calculate prediction accuracy with RMSE(root mean-squared error).
+
+```{r}
+#Model 1 train RMSE
+train_error1 <- rmse(predict1_norm_train$net.result, train_data$Price)
+train_error1
+predict1_norm_valid <- compute(nn_1_fit, valid_data)
+
+#Model 1 valid RMSE
+valid_error1 <- rmse(predict1_norm_valid$net.result, valid_data$Price)
+valid_error1
+
+#Model 2 train RMSE
+train_error2 <- rmse(predict2_norm_train$net.result, train_data$Price)
+train_error2
+predict2_norm_valid <- compute(nn_2_fit, valid_data)
+
+#Model 2 valid RMSE
+valid_error2 <- rmse(predict2_norm_valid$net.result, valid_data$Price)
+valid_error2
+
+#Model 3 train RMSE
+train_error3 <- rmse(predict3_norm_train$net.result, train_data$Price)
+train_error3
+predict3_norm_valid <- compute(nn_3_fit, valid_data)
+
+#Model 3 valid RMSE
+valid_error3 <- rmse(predict3_norm_valid$net.result, valid_data$Price)
+valid_error3
+```
