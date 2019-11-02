@@ -1,0 +1,99 @@
+---
+title: "Financial condition of bank"
+output: html_document
+---
+# 10.1
+
+**Financial condition of bank using logistc regression**
+
+##Data load and drop obs, 
+
+```{r}
+Banks <- read.csv("Banks.csv")
+#View(Banks)
+
+Banks <- Banks[, -c(1,3)]
+
+Banks$Financial.Condition <- factor(Banks$Financial.Condition, levels = c(1,0))
+```
+
+##Make logistic regression model
+##Run logistic regression on datasset, predictor variables = X
+
+```{r}
+logit.class <- glm(Financial.Condition~TotExp.Assets+TotLns.Lses.Assets, family = binomial(link='logit'), data=Banks)
+
+options(scipen=999)
+
+#summary(logit.class)
+plot(logit.class)
+names(logit.class)
+coef(logit.class)
+exp(coef(logit.class))
+```
+
+#1.Write the estimated equation that associates the financial condition of a bank with its two predictors in three formats:
+
+i) Logit Format: Logit(Financial Condition = Weak) = -14.721 + 89.834 x (TotExp/Assets) + 8.731 x (TotLns&Lses/Assets)
+
+ii) Odds Format: Odds(Financial Condition = Weak) = e^(-14.721 + 89.834 x TotExp/Assets + 8.731 x TotLns&Lses/Assets)
+
+iii) Probabiloity Format: Probability(Financial Condition = Weak) = 1 / (1 + e^(-14.721 + 89.834 x TotExp/Assets + 8.731 x TotLns&Lses/Assets))
+
+#2. Consider a new bank whose total loans and leases/assets ratio = 0.6 and total expenses/assets ratio = 0.11.
+
+```{r}
+newbank <- data.frame("TotExp.Assets"=0.11, "TotLns.Lses.Assets"=0.6)
+
+# The logit = 0.3993
+logit <- -14.721 + 89.834 * 0.11 + 8.731 * 0.6
+logit
+
+# The odds = 1.4908
+odds <- exp(logit)
+odds
+
+#The probability = 0.4015
+probability <- 1 / (1 + odds)
+probability
+
+# The classification of the bank : Not weak.
+new.pred <- predict(logit.class, newbank)
+new.pred
+```
+
+#3. Compute the threshold that should be used if we want to make a classification based on the odds of being financially weak, and the threshold for the corresponding logit.
+
+# If the cutoff value is 0.5 based on odds, then the threhold of odds is equal to 1, and the corresponding logit is equal to 0.
+
+```{r}
+cutoff = 0.5
+odds = cutoff/(1-cutoff)
+odds
+
+logit = log(odds)
+logit
+```
+
+#4.Interpret the estimated coefficient for the total loans & leases to total assets ratio interms of the odds of being financially weak.
+
+# The coefficent for TotLns&Lses/Assets has a positive number, which means if TotLns&Lses/Assets increase, the odds of belonging to class 1 (weak) will also increase.
+# And a single unit increase in TotLns&Lses/Asset, holding other predictors constant, is associated with an increase in the odds that the financial condition is weak by a factor of exp(8.731).
+
+#5.To minimize the expected cost of misclassification, should the
+cutoff value for classification (which is currently at 0.5) be increased or decreased?
+
+# In this case, we should decrease the cutoff value to avoid the misclassification that a bank in poor financial condition is misclassified as financially strong.
+
+```{r}
+p <- ifelse(logit.class$fitted.values >= 0.5,0,1)
+table(p, Banks$Financial.Condition)
+p <- ifelse(logit.class$fitted.values >= 0.9,0,1)
+table(p, Banks$Financial.Condition)
+p <- ifelse(logit.class$fitted.values >= 0.1,0,1)
+table(p, Banks$Financial.Condition)
+p <- ifelse(logit.class$fitted.values >= 0,0,1)
+table(p, Banks$Financial.Condition)
+p <- ifelse(logit.class$fitted.values >= 0.03,0,1)
+table(p, Banks$Financial.Condition)
+```
